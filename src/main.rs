@@ -26,8 +26,6 @@
 #[cfg(feature = "logging")] extern crate env_logger;
 extern crate docopt;
 extern crate ansi_term;
-extern crate flate2;
-extern crate tar;
 extern crate xdg;
 extern crate curl;
 extern crate rustc_serialize;
