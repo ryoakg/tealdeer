@@ -18,11 +18,7 @@ dev = ["clippy"]
 
 [dependencies]
 log = "^0.3"
-xdg = "^2.0"
-tar = "^0.4"
 curl = "^0.2"
-time = "^0.1"
-flate2 = "^0.2"
 docopt = "^0.6"
 walkdir = "^0.1"
 ansi_term = "^0.7"
