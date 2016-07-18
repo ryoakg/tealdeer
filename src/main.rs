@@ -48,6 +48,8 @@ use cache::Cache;
 use error::TealdeerError::{UpdateError, CacheError};
 use formatter::print_lines;
 use types::OsType;
+use std::env;
+use std::process::Command;
 
 const NAME: &'static str = "tealdeer";
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -62,6 +64,7 @@ Options:
     -h --help           Show this screen
     -v --version        Show version information
     -l --list           List all commands in the cache
+    -e --edit           Edit command in the cache
     -f --render <file>  Render a specific markdown file
     -o --os <type>      Override the operating system [linux, osx, sunos]
 
@@ -82,6 +85,7 @@ struct Args {
     flag_help: bool,
     flag_version: bool,
     flag_list: bool,
+    flag_edit: bool,
     flag_render: Option<String>,
     flag_os: Option<OsType>,
 }
@@ -99,6 +103,17 @@ fn print_page(path: &Path) -> Result<(), String> {
     print_lines(&mut tokenizer);
 
     Ok(())
+}
+
+/// Edit page by path
+fn edit_page(path: &Path) -> Result<(), String> {
+    if let Ok(editor) = env::var("EDITOR") {
+        let _ = Command::new(editor)
+            .arg(format!("{}",path.display()))
+            .spawn();
+        return Ok(());
+    };
+    return Err("$EDITOR is not set.".to_string());
 }
 
 #[cfg(feature = "logging")]
@@ -166,6 +181,21 @@ fn main() {
         // Print pages
         println!("{}", pages.join(", "));
         process::exit(0);
+    }
+
+    // Edit the cached command markdown and exit
+    if args.flag_edit {
+        if let Some(ref command) = args.arg_command {
+            if let Some(path) = cache.find_page_to_edit(&command) {
+                if let Err(msg) = edit_page(&path) {
+                    println!("{}", msg);
+                } else {
+                    process::exit(0);
+                }
+            }
+        }
+        println!("You must specify command to edit tldr-markdown.");
+        process::exit(1);
     }
 
     // Show command from cache
