@@ -81,6 +81,17 @@ impl Cache {
         }
     }
 
+    /// Search for a page and return the path to it, whether or not the path is exists.
+    pub fn find_page_to_edit(&self, name: &str) -> Option<PathBuf> {
+        let page_filename = format!("{}.md", name);
+        let platforms_dir = match self.get_page_dir() {
+            Ok(cache_dir) => cache_dir,
+            _ => return None,
+        };
+        let path = platforms_dir.join("common").join(&page_filename);
+        Some(path)
+    }
+
     /// Return the available pages.
     pub fn list_pages(&self) -> Result<Vec<String>, TealdeerError> {
         // Determine platforms directory and platform
