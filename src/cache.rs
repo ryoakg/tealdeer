@@ -1,12 +1,7 @@
-use std::fs;
 use std::env;
 use std::path::PathBuf;
 
-#[cfg(unix)] use std::os::unix::fs::MetadataExt;
-
-use xdg::BaseDirectories;
 use walkdir::{WalkDir, WalkDirIterator, DirEntry};
-use time;
 
 use error::TealdeerError::{self, CacheError};
 use types::OsType;
@@ -25,42 +20,21 @@ impl Cache {
         }
     }
 
-    /// Return the path to the cache directory.
-    fn get_cache_dir(&self) -> Result<PathBuf, TealdeerError> {
-        // Allow overriding the cache directory by setting the
-        // $TEALDEER_CACHE_DIR env variable.
-        if let Ok(value) = env::var("TEALDEER_CACHE_DIR") {
+    /// Return the path to the page directory.
+    fn get_page_dir(&self) -> Result<PathBuf, TealdeerError> {
+        if let Ok(value) = env::var("TLDR_PAGE_DIR") {
             let path = PathBuf::from(value);
 
             if path.exists() && path.is_dir() {
                 return Ok(path)
             } else {
                 return Err(CacheError(
-                    "Path specified by $TEALDEER_CACHE_DIR \
+                    "Path specified by $TLDR_PAGE_DIR \
                      does not exist or is not a directory.".into()
                 ));
             }
         };
-
-        // Otherwise, fall back to $XDG_CACHE_HOME/tealdeer.
-        let xdg_dirs = match BaseDirectories::with_prefix(::NAME) {
-            Ok(dirs) => dirs,
-            Err(_) => return Err(CacheError("Could not determine XDG base directory.".into())),
-        };
-        Ok(xdg_dirs.get_cache_home())
-    }
-
-    #[cfg(unix)]
-    /// Return the number of seconds since the cache directory was last modified.
-    pub fn last_update(&self) -> Option<i64> {
-        if let Ok(cache_dir) = self.get_cache_dir() {
-            if let Ok(metadata) = fs::metadata(cache_dir.join("tldr-master")) {
-                let mtime = metadata.mtime();
-                let now = time::now_utc().to_timespec();
-                return Some(now.sec - mtime)
-            };
-        };
-        None
+        return Err(CacheError("$TLDR_PAGES_DIR isn't set.".into()));
     }
 
     /// Return the platform directory.
@@ -79,8 +53,8 @@ impl Cache {
         let page_filename = format!("{}.md", name);
 
         // Get platform dir
-        let platforms_dir = match self.get_cache_dir() {
-            Ok(cache_dir) => cache_dir.join("tldr-master").join("pages"),
+        let platforms_dir = match self.get_page_dir() {
+            Ok(cache_dir) => cache_dir,
             _ => return None,
         };
 
@@ -110,8 +84,7 @@ impl Cache {
     /// Return the available pages.
     pub fn list_pages(&self) -> Result<Vec<String>, TealdeerError> {
         // Determine platforms directory and platform
-        let cache_dir = try!(self.get_cache_dir());
-        let platforms_dir = cache_dir.join("tldr-master").join("pages");
+        let platforms_dir = try!(self.get_page_dir());
         let platform_dir = self.get_platform_dir();
 
         // Closure that allows the WalkDir instance to traverse platform

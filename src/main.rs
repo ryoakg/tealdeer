@@ -26,10 +26,8 @@
 #[cfg(feature = "logging")] extern crate env_logger;
 extern crate docopt;
 extern crate ansi_term;
-extern crate xdg;
 extern crate curl;
 extern crate rustc_serialize;
-extern crate time;
 extern crate walkdir;
 
 use std::io::BufReader;
@@ -38,7 +36,6 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use docopt::Docopt;
-use ansi_term::Colour;
 
 mod types;
 mod tokenizer;
@@ -78,7 +75,6 @@ To render a local file (for testing):
     $ tldr --render /path/to/file.md
 ";
 const ARCHIVE_URL: &'static str = "https://github.com/tldr-pages/tldr/archive/master.tar.gz";
-const MAX_CACHE_AGE: i64 = 2592000; // 30 days
 
 #[derive(Debug, RustcDecodable)]
 struct Args {
@@ -103,24 +99,6 @@ fn print_page(path: &Path) -> Result<(), String> {
     print_lines(&mut tokenizer);
 
     Ok(())
-}
-
-/// Check the cache for freshness
-fn check_cache(args: &Args, cache: &Cache) {
-    match cache.last_update() {
-        Some(ago) if ago > MAX_CACHE_AGE => {
-            println!("{}", Colour::Red.paint(format!(
-                "Cache wasn't updated in {} days.\n\
-                 You should probably run `tldr --update` soon.\n",
-                MAX_CACHE_AGE / 24 / 3600
-            )));
-        },
-        None => {
-            println!("Cache not found. Please run `tldr --update`.");
-            process::exit(1);
-        },
-        _ => {},
-    }
 }
 
 #[cfg(feature = "logging")]
@@ -177,9 +155,6 @@ fn main() {
 
     // List cached commands and exit
     if args.flag_list {
-        // Check cache for freshness
-        check_cache(&args, &cache);
-
         // Get list of pages
         let pages = cache.list_pages().unwrap_or_else(|e| {
             match e {
@@ -195,9 +170,6 @@ fn main() {
 
     // Show command from cache
     if let Some(ref command) = args.arg_command {
-        // Check cache for freshness
-        check_cache(&args, &cache);
-
         // Search for command in cache
         if let Some(path) = cache.find_page(&command) {
             if let Err(msg) = print_page(&path) {
