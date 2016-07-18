@@ -69,18 +69,11 @@ Options:
     -l --list           List all commands in the cache
     -f --render <file>  Render a specific markdown file
     -o --os <type>      Override the operating system [linux, osx, sunos]
-    -u --update         Update the local cache
-    -c --clear-cache    Clear the local cache
 
 Examples:
 
     $ tldr tar
     $ tldr --list
-
-To control the cache:
-
-    $ tldr --update
-    $ tldr --clear-cache
 
 To render a local file (for testing):
 
@@ -97,8 +90,6 @@ struct Args {
     flag_list: bool,
     flag_render: Option<String>,
     flag_os: Option<OsType>,
-    flag_update: bool,
-    flag_clear_cache: bool,
 }
 
 /// Print page by path
@@ -118,22 +109,20 @@ fn print_page(path: &Path) -> Result<(), String> {
 
 /// Check the cache for freshness
 fn check_cache(args: &Args, cache: &Cache) {
-    if !args.flag_update {
-        match cache.last_update() {
-            Some(ago) if ago > MAX_CACHE_AGE => {
-                println!("{}", Colour::Red.paint(format!(
-                    "Cache wasn't updated in {} days.\n\
-                    You should probably run `tldr --update` soon.\n",
-                    MAX_CACHE_AGE / 24 / 3600
-                )));
-            },
-            None => {
-                println!("Cache not found. Please run `tldr --update`.");
-                process::exit(1);
-            },
-            _ => {},
-        }
-    };
+    match cache.last_update() {
+        Some(ago) if ago > MAX_CACHE_AGE => {
+            println!("{}", Colour::Red.paint(format!(
+                "Cache wasn't updated in {} days.\n\
+                 You should probably run `tldr --update` soon.\n",
+                MAX_CACHE_AGE / 24 / 3600
+            )));
+        },
+        None => {
+            println!("Cache not found. Please run `tldr --update`.");
+            process::exit(1);
+        },
+        _ => {},
+    }
 }
 
 #[cfg(feature = "logging")]
@@ -176,28 +165,6 @@ fn main() {
 
     // Initialize cache
     let cache = Cache::new(ARCHIVE_URL, os);
-
-    // Clear cache, pass through
-    if args.flag_clear_cache {
-        cache.clear().unwrap_or_else(|e| {
-            match e {
-                UpdateError(msg) | CacheError(msg) => println!("Could not delete cache: {}", msg),
-            };
-            process::exit(1);
-        });
-        println!("Successfully deleted cache.");
-    }
-
-    // Update cache, pass through
-    if args.flag_update {
-        cache.update().unwrap_or_else(|e| {
-            match e {
-                UpdateError(msg) | CacheError(msg) => println!("Could not update cache: {}", msg),
-            };
-            process::exit(1);
-        });
-        println!("Successfully updated cache.");
-    }
 
     // Render local file and exit
     if let Some(ref file) = args.flag_render {
@@ -250,8 +217,6 @@ fn main() {
     }
 
     // Some flags can be run without a command.
-    if !(args.flag_update || args.flag_clear_cache) {
-        println!("{}", USAGE);
-        process::exit(1);
-    }
+    println!("{}", USAGE);
+    process::exit(1);
 }
